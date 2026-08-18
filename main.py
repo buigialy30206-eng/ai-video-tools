@@ -1,10 +1,11 @@
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, Response, RedirectResponse
+from fastapi.responses import HTMLResponse, Response, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 class CacheMiddleware(BaseHTTPMiddleware):
@@ -69,6 +70,15 @@ def serve_template(filename: str) -> HTMLResponse:
         return HTMLResponse("<h1>Page not found</h1>", status_code=404)
     with open(path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        resp = serve_template("404.html")
+        resp.status_code = 404
+        return resp
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 @app.get("/robots.txt")
